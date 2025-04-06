@@ -36,7 +36,7 @@ void ESP32ButtonHandler::loop(void)
 
 void ESP32ButtonHandler::thread(void *context)
 {
-    ButtonHandler *buttonHandler = static_cast<ButtonHandler *>(context);
+    ESP32ButtonHandler *buttonHandler = static_cast<ESP32ButtonHandler *>(context);
     while (true) {
         buttonHandler->loop();
         vTaskDelay(10 / portTICK_PERIOD_MS);
