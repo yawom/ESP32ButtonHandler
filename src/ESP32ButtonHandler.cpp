@@ -3,19 +3,19 @@
 ESP32ButtonHandler::ESP32ButtonHandler(int pinNumber, bool activeLow, bool pullupActive) {
     oneButton = new OneButton(pinNumber, activeLow, pullupActive);
     oneButton->attachClick([](void *context) {
-        static_cast<ButtonHandler *>(context)->onClick();
+        static_cast<ESP32ButtonHandler *>(context)->onClick();
     }, this);
     oneButton->attachDoubleClick([](void *context) {
-        static_cast<ButtonHandler *>(context)->onDoubleClick();
+        static_cast<ESP32ButtonHandler *>(context)->onDoubleClick();
     }, this);
     oneButton->attachLongPressStart([](void *context) {
-        static_cast<ButtonHandler *>(context)->onLongPressStart();
+        static_cast<ESP32ButtonHandler *>(context)->onLongPressStart();
     }, this);
     oneButton->attachDuringLongPress([](void *context) {
-        static_cast<ButtonHandler *>(context)->onLongPress();
+        static_cast<ESP32ButtonHandler *>(context)->onLongPress();
     }, this);
     oneButton->attachLongPressStop([](void *context) {
-        static_cast<ButtonHandler *>(context)->onLongPressStop();
+        static_cast<ESP32ButtonHandler *>(context)->onLongPressStop();
     }, this);
 
     if (xTaskCreate(thread, "ButtonThread", 4096, this, 1, &threadHandle) != pdPASS) {
