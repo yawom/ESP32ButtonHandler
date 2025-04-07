@@ -1,22 +1,24 @@
 {
     "name": "ESP32ButtonHandler",
     "version": "1.0.0",
-    "keywords": ["arduino", "button", "OneButton", "ESP32", "FreeRTOS"],
     "description": "An ESP32 library for handling buttons with OneButton and FreeRTOS support.",
+    "keywords": ["arduino", "button", "OneButton", "ESP32", "FreeRTOS"],
     "repository": {
       "type": "git",
-      "url": "https://github.com/yawom/ESP32ButtonHandler"
+      "url": "https://github.com/yawom/ESP32ButtonHandler.git"
     },
-    "authors": {
-        "name": "Wayne Botha",
-        "email": "wayne@witklippies.co.za",
-        "url": "https://github.com/yawom",
-        "maintainer": true
-    },
-    "license": "BSD 3-Clause",
-    "frameworks": "arduino",
+    "authors": [
+      {
+          "name": "Wayne Botha",
+          "email": "wayne@witklippies.co.za",
+          "url": "https://github.com/yawom",
+          "maintainer": true
+      }
+    ],
+    "license": "BSD-3-Clause",
+    "frameworks": "*",
     "platforms": "*",
     "dependencies": {
-      "OneButton": "^2.6.1"
+      "mathertel/OneButton": "^2.6.1"
     }
   }
