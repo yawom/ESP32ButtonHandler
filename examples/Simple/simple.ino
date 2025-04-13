@@ -2,6 +2,10 @@
 
 #include <ESP32ButtonHandler.h>
 
+// Define your button pins
+#define PIN_BUTTON_1 0
+#define PIN_BUTTON_2 14
+
 class CustomButtonHandler : public ESP32ButtonHandler
 {
 private:
@@ -30,14 +34,12 @@ protected:
     }
 };
 
-ESP32ButtonHandler *button1;
-ESP32ButtonHandler *button2;
 
 void setup()
 {
     Serial.begin(115200);
-    button1 = new CustomButtonHandler(0);
-    button2 = new CustomButtonHandler(14);
+    CustomButtonHandler *button1 = new CustomButtonHandler(PIN_BUTTON_1);
+    CustomButtonHandler *button2 = new CustomButtonHandler(PIN_BUTTON_2);
 }
 
 void loop()
