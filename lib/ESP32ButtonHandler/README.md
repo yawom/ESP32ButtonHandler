@@ -1,55 +1,60 @@
 # ESP32ButtonHandler
-A C++ ESP32 library for handling buttons with FreeRTOS support.
-It implementation a simple class and starts a thread to handle the tick events.
+A C++ ESP32 library for handling buttons with FreeRTOS support. The handler starts its own task to poll the button pin and calls the appropriate callback functions.
 
 ## Getting started
 
 Add the include file to your project.
 ```cpp
-#include <ESP32ButtonHandler.hpp>
+#include <ESP32ButtonHandler.h>
+
+// Define your button pins
+#define PIN_BUTTON_1 0
+#define PIN_BUTTON_2 14
 ```
 
-Create a class that inherits from *ESP32ButtonHandler* and overrides the callback functions.
+Create a class that inherits from *ESP32ButtonHandler* and override the callback functions.
 ```cpp
 class CustomButtonHandler : public ESP32ButtonHandler
 {
-    private:
-        int pinNumber;
+private:
+    int pinNumber;
 
-    public:
-        CustomButtonHandler(int pinNumber, bool activeLow = true, bool pullupActive = true)
-            : ESP32ButtonHandler(pinNumber, activeLow, pullupActive), pinNumber(pinNumber) {}
+public:
+    CustomButtonHandler(int pinNumber, bool activeLow = true, bool pullupActive = false)
+        : ESP32ButtonHandler(pinNumber, activeLow, pullupActive), pinNumber(pinNumber) {}
 
-    protected:
-        void onClick(void) override
-        {
-            Serial.printf("Button click, pin %d.\n",  pinNumber);
-        }
-        void onDoubleClick(void) override
-        {
-            Serial.printf("Button double click, pin %d.\n",  pinNumber);
-        }
-        void onLongPressStart(void) override
-        {
-            Serial.printf("Button long press start, pin %d.\n",  pinNumber);
-        }
-        void onLongPress(void) override
-        {
-            Serial.printf("Button long press, pin %d.\n",  pinNumber);
-        }
-        void onLongPressStop(void) override
-        {
-            Serial.printf("Button long press stop, pin %d.\n",  pinNumber);
-        }
+protected:
+    void onClick(int clickCount) override
+    {
+        Serial.printf("%d click(s), pin %d.\n", clickCount, pinNumber);
+    }
+    void onLongPressStart(void) override
+    {
+        Serial.printf("Long press start, pin %d.\n", pinNumber);
+    }
+    void onLongPress(void) override
+    {
+        Serial.printf("Long press, pin %d.\n", pinNumber);
+    }
+    void onLongPressEnd(void) override
+    {
+        Serial.printf("Long press stop, pin %d.\n", pinNumber);
+    }
 };
 ```
 
-Create an instance of your custom handler to handle the button events.
+Create an instance of your custom handler for each button to handle the button events.
 ```cpp
 void setup() {
     Serial.begin(115200);
-    ESP32ButtonHandler *button1 = new CustomButtonHandler(PIN_BUTTON_1);
+    CustomButtonHandler *button1 = new CustomButtonHandler(PIN_BUTTON_1);
+    CustomButtonHandler *button2 = new CustomButtonHandler(PIN_BUTTON_2);
     // Press the buttons to see the callback logs
+}
+
+void loop()
+{
+    // ESP32ButtonHandler runs its own FreeRTOS task, so no need to call anything here for the buttons to work.
 }
 ```
 

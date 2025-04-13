@@ -1,6 +1,6 @@
 {
   "name": "ESP32ButtonHandler",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "A C++ ESP32 library for handling buttons with callback support.",
   "keywords": [
     "button",
