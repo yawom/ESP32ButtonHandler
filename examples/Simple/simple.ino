@@ -42,7 +42,5 @@ void setup()
 
 void loop()
 {
-    button1->update();
-    button2->update();
     // ESP32ButtonHandler runs its own FreeRTOS task, so no need to call anything here.
 }

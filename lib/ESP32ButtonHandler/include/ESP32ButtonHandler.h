@@ -15,7 +15,6 @@ public:
 
     virtual ~ESP32ButtonHandler();
 
-    void update();
 
 protected:
     virtual void onClick(int count) {}
@@ -60,6 +59,7 @@ private:
     bool updateDebounce(bool reading);
     void transition(ButtonState newState);
     const char *stateToString(ButtonState state) const;
+    void update();
 
     static void thread(void *context);
 };
