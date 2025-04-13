@@ -1,0 +1,25 @@
+{
+  "name": "ESP32ButtonHandler",
+  "version": "1.1.0",
+  "description": "A C++ ESP32 library for handling buttons with callback support.",
+  "keywords": [
+    "button",
+    "esp32",
+    "input"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yawom/ESP32ButtonHandler.git"
+  },
+  "authors": [
+    {
+      "name": "Wayne Botha",
+      "email": "wayne@witklippies.co.za",
+      "url": "https://github.com/yawom",
+      "maintainer": true
+    }
+  ],
+  "license": "BSD-3-Clause",
+  "frameworks": "arduino",
+  "platforms": "espressif32"
+}
