@@ -1,6 +1,6 @@
 # ESP32ButtonHandler
-An ESP32 library for handling buttons with OneButton and FreeRTOS support.
-It wraps the OneButton implementation in a simple class and starts a thread to handle the tick events.
+A C++ ESP32 library for handling buttons with FreeRTOS support.
+It implementation a simple class and starts a thread to handle the tick events.
 
 ## Getting started
 
