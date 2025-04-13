@@ -140,6 +140,7 @@ bool ESP32ButtonHandler::updateDebounce(bool reading)
 
 void ESP32ButtonHandler::transition(ButtonState newState)
 {
+#ifdef DEBUG
     Serial.print("[");
     Serial.print(millis());
     Serial.print(" ms] Transitioning from ");
@@ -148,6 +149,7 @@ void ESP32ButtonHandler::transition(ButtonState newState)
     Serial.print(stateToString(newState));
     Serial.print(" clickCount = ");
     Serial.println(clickCount);
+#endif // DEBUG
 
     currentState = newState;
 }

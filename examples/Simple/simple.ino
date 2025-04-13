@@ -14,19 +14,19 @@ public:
 protected:
     void onClick(int clickCount) override
     {
-        Serial.printf("%d click, pin %d.\n", clickCount, pinNumber);
+        Serial.printf("%d click(s), pin %d.\n", clickCount, pinNumber);
     }
     void onLongPressStart(void) override
     {
-        Serial.printf("Button long press start, pin %d.\n", pinNumber);
+        Serial.printf("Long press start, pin %d.\n", pinNumber);
     }
     void onLongPress(void) override
     {
-        Serial.printf("Button long press, pin %d.\n", pinNumber);
+        Serial.printf("Long press, pin %d.\n", pinNumber);
     }
     void onLongPressEnd(void) override
     {
-        Serial.printf("Button long press stop, pin %d.\n", pinNumber);
+        Serial.printf("Long press stop, pin %d.\n", pinNumber);
     }
 };
 
