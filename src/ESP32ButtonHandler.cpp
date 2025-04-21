@@ -10,7 +10,9 @@ ESP32ButtonHandler::ESP32ButtonHandler(uint8_t pin,
       multiClickThreshold(multiClickThreshold), debounceDelay(debounceDelay),
       pressTime(0), releaseTime(0), lastHeldTime(0), lastDebounceTime(0),
       lastButtonRead(false), debouncedState(false),
-      currentState(Idle), clickCount(0)
+      currentState(Idle), clickCount(0),
+      onClickCallback(nullptr), onLongPressStartCallback(nullptr),
+      onLongPressCallback(nullptr), onLongPressEndCallback(nullptr)
 {
     pinMode(pin, pullUp ? INPUT_PULLUP : INPUT);
     if (xTaskCreate(thread, "ButtonThread", 4096, this, 1, &threadHandle) != pdPASS)
@@ -20,7 +22,50 @@ ESP32ButtonHandler::ESP32ButtonHandler(uint8_t pin,
     }
 }
 
-ESP32ButtonHandler::~ESP32ButtonHandler() {}
+ESP32ButtonHandler::~ESP32ButtonHandler() {
+    // Clean up task
+    if (threadHandle != nullptr) {
+        vTaskDelete(threadHandle);
+        threadHandle = nullptr;
+    }
+}
+
+void ESP32ButtonHandler::addObserver(ButtonObserver* observer) {
+    if (observer) {
+        // Check if observer already exists to avoid duplicates
+        for (auto existingObserver : observers) {
+            if (existingObserver == observer) {
+                return; // Observer already added
+            }
+        }
+        observers.push_back(observer);
+    }
+}
+
+void ESP32ButtonHandler::removeObserver(ButtonObserver* observer) {
+    if (observer) {
+        auto it = std::find(observers.begin(), observers.end(), observer);
+        if (it != observers.end()) {
+            observers.erase(it);
+        }
+    }
+}
+
+void ESP32ButtonHandler::setOnClickCallback(std::function<void(ESP32ButtonHandler*, int)> callback) {
+    onClickCallback = callback;
+}
+
+void ESP32ButtonHandler::setOnLongPressStartCallback(std::function<void(ESP32ButtonHandler*)> callback) {
+    onLongPressStartCallback = callback;
+}
+
+void ESP32ButtonHandler::setOnLongPressCallback(std::function<void(ESP32ButtonHandler*)> callback) {
+    onLongPressCallback = callback;
+}
+
+void ESP32ButtonHandler::setOnLongPressEndCallback(std::function<void(ESP32ButtonHandler*)> callback) {
+    onLongPressEndCallback = callback;
+}
 
 void ESP32ButtonHandler::update()
 {
@@ -61,7 +106,7 @@ void ESP32ButtonHandler::update()
 
     case LongPressStart:
         lastHeldTime = millis();
-        onLongPressStart();
+        notifyOnLongPressStart();
         transition(LongPress);
         break;
 
@@ -74,12 +119,12 @@ void ESP32ButtonHandler::update()
         else if (millis() - lastHeldTime > holdThreshold)
         {
             lastHeldTime = millis();
-            onLongPress();
+            notifyOnLongPress();
         }
         break;
 
     case LongPressEnd:
-        onLongPressEnd();
+        notifyOnLongPressEnd();
         transition(Released);
         break;
 
@@ -106,17 +151,17 @@ void ESP32ButtonHandler::update()
         break;
 
     case Clicked:
-        onClick(clickCount);
+        notifyOnClick(clickCount);
         transition(Idle);
         break;
 
     case DoubleClicked:
-        onClick(clickCount);
+        notifyOnClick(clickCount);
         transition(Idle);
         break;
 
     case MultiClicked:
-        onClick(clickCount);
+        notifyOnClick(clickCount);
         transition(Idle);
         break;
     }
@@ -190,6 +235,54 @@ void ESP32ButtonHandler::thread(void *context)
     {
         buttonHandler->update();
         vTaskDelay(10 / portTICK_PERIOD_MS);
+    }
+}
+
+void ESP32ButtonHandler::notifyOnClick(int count) {
+    // Notify all observers
+    for (auto observer : observers) {
+        observer->onButtonClick(this, count);
+    }
+
+    // Call function callback if set
+    if (onClickCallback) {
+        onClickCallback(this, count);
+    }
+}
+
+void ESP32ButtonHandler::notifyOnLongPressStart() {
+    // Notify all observers
+    for (auto observer : observers) {
+        observer->onButtonLongPressStart(this);
+    }
+
+    // Call function callback if set
+    if (onLongPressStartCallback) {
+        onLongPressStartCallback(this);
+    }
+}
+
+void ESP32ButtonHandler::notifyOnLongPress() {
+    // Notify all observers
+    for (auto observer : observers) {
+        observer->onButtonLongPress(this);
+    }
+
+    // Call function callback if set
+    if (onLongPressCallback) {
+        onLongPressCallback(this);
+    }
+}
+
+void ESP32ButtonHandler::notifyOnLongPressEnd() {
+    // Notify all observers
+    for (auto observer : observers) {
+        observer->onButtonLongPressEnd(this);
+    }
+
+    // Call function callback if set
+    if (onLongPressEndCallback) {
+        onLongPressEndCallback(this);
     }
 }
 

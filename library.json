@@ -1,11 +1,13 @@
 {
   "name": "ESP32ButtonHandler",
-  "version": "1.1.2",
-  "description": "A C++ ESP32 library for handling buttons with callback support.",
+  "version": "2.0.0",
+  "description": "A C++ ESP32 library for handling buttons with observer pattern support, allowing multiple observers and lambda callbacks.",
   "keywords": [
     "button",
     "esp32",
-    "input"
+    "input",
+    "observer",
+    "callback"
   ],
   "repository": {
     "type": "git",
