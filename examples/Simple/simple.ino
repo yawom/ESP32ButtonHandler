@@ -17,6 +17,12 @@ void setup()
     ESP32ButtonHandler* button1 = new ESP32ButtonHandler(PIN_BUTTON_1);
     ESP32ButtonHandler* button2 = new ESP32ButtonHandler(PIN_BUTTON_2);
 
+    // Check initialization
+    if (!button1->isInitialized() || !button2->isInitialized()) {
+        Serial.println("ERROR: Failed to initialize button handlers!");
+        while(1) { delay(1000); }
+    }
+
     // Set up callbacks for button1
     button1->setOnClickCallback([](ESP32ButtonHandler* handler, int clickCount) {
         Serial.printf("Button on pin %d clicked %d time(s)\n",
