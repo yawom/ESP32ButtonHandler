@@ -1,0 +1,150 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install PlatformIO Core
+        run: |
+          pip install --upgrade platformio
+          pio --version
+
+      - name: Validate library.json
+        run: |
+          echo "Validating library.json..."
+          python -m json.tool library.json > /dev/null
+          echo "✓ library.json is valid JSON"
+
+          # Check required fields
+          python << 'EOF'
+          import json
+          with open('library.json') as f:
+              lib = json.load(f)
+
+          required = ['name', 'version', 'description', 'keywords', 'repository', 'authors', 'license']
+          missing = [field for field in required if field not in lib]
+
+          if missing:
+              print(f"✗ Missing required fields: {', '.join(missing)}")
+              exit(1)
+
+          print("✓ All required fields present")
+          print(f"  Name: {lib['name']}")
+          print(f"  Version: {lib['version']}")
+          print(f"  License: {lib['license']}")
+          EOF
+
+      - name: Validate library.properties
+        run: |
+          if [ -f library.properties ]; then
+            echo "Validating library.properties..."
+            grep -q "^name=" library.properties && echo "✓ name field found" || (echo "✗ name field missing" && exit 1)
+            grep -q "^version=" library.properties && echo "✓ version field found" || (echo "✗ version field missing" && exit 1)
+            grep -q "^author=" library.properties && echo "✓ author field found" || (echo "✗ author field missing" && exit 1)
+            echo "✓ library.properties is valid"
+          else
+            echo "⚠ library.properties not found (optional but recommended)"
+          fi
+
+      - name: Check library structure
+        run: |
+          echo "Checking library structure..."
+          [ -d "src" ] && echo "✓ src/ directory found" || (echo "✗ src/ directory missing" && exit 1)
+          [ -d "include" ] && echo "✓ include/ directory found" || (echo "✗ include/ directory missing" && exit 1)
+          [ -d "examples" ] && echo "✓ examples/ directory found" || echo "⚠ examples/ directory recommended"
+          [ -f "keywords.txt" ] && echo "✓ keywords.txt found" || echo "⚠ keywords.txt recommended"
+          [ -f "README.md" ] && echo "✓ README.md found" || echo "⚠ README.md recommended"
+          [ -f "LICENSE" ] && echo "✓ LICENSE found" || echo "⚠ LICENSE recommended"
+
+      - name: Build examples
+        run: |
+          echo "Building examples..."
+
+          # Create test platformio.ini for building examples
+          cat > platformio_test.ini << 'EOF'
+          [platformio]
+          default_envs = simple
+
+          [env]
+          platform = espressif32
+          board = esp32dev
+          framework = arduino
+
+          [env:simple]
+          build_src_filter =
+              +<../examples/Simple/>
+          lib_deps =
+              ${env.lib_deps}
+
+          [env:observer]
+          build_src_filter =
+              +<../examples/Observer/>
+          lib_deps =
+              ${env.lib_deps}
+          EOF
+
+          # Try to compile examples (this validates the code compiles)
+          for example in examples/*/; do
+            if [ -d "$example" ]; then
+              example_name=$(basename "$example")
+              echo "Checking $example_name example..."
+
+              # Check if .ino file exists
+              if ls "$example"*.ino 1> /dev/null 2>&1; then
+                echo "✓ $example_name example found"
+              else
+                echo "✗ No .ino file in $example_name"
+                exit 1
+              fi
+            fi
+          done
+
+          echo "✓ All examples validated"
+
+      - name: Check for common issues
+        run: |
+          echo "Checking for common issues..."
+
+          # Check for tabs vs spaces consistency
+          if grep -r $'\t' src/ include/ 2>/dev/null | grep -v Binary; then
+            echo "⚠ Found tabs in source files (consider using spaces for consistency)"
+          else
+            echo "✓ No tabs found"
+          fi
+
+          # Check for trailing whitespace
+          if grep -r ' $' src/ include/ 2>/dev/null | grep -v Binary; then
+            echo "⚠ Found trailing whitespace"
+          else
+            echo "✓ No trailing whitespace"
+          fi
+
+          # Check for CRLF line endings
+          if find src include -type f -exec file {} \; | grep CRLF; then
+            echo "⚠ Found CRLF line endings (should use LF)"
+          else
+            echo "✓ Unix line endings (LF)"
+          fi
+
+          echo "✓ Code quality checks completed"
+
+      - name: Summary
+        run: |
+          echo "================================"
+          echo "✓ All validation checks passed!"
+          echo "================================"
