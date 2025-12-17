@@ -44,11 +44,17 @@ void setup() {
     Serial.begin(115200);
     delay(1000);
     Serial.println("ESP32ButtonHandler Observer Pattern Example");
-    
+
     // Create button handlers
     button1 = new ESP32ButtonHandler(PIN_BUTTON_1);
     button2 = new ESP32ButtonHandler(PIN_BUTTON_2);
-    
+
+    // Check initialization
+    if (!button1->isInitialized() || !button2->isInitialized()) {
+        Serial.println("ERROR: Failed to initialize button handlers!");
+        while(1) { delay(1000); }
+    }
+
     // Create observers
     logger1 = new ButtonLogger("Logger1");
     logger2 = new ButtonLogger("Logger2");

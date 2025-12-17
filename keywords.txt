@@ -7,16 +7,28 @@
 ############################################
 
 ESP32ButtonHandler	KEYWORD1
+ButtonObserver	KEYWORD1
 
 ############################################
 # Methods and Functions (KEYWORD2)
 ############################################
 
+addObserver	KEYWORD2
+removeObserver	KEYWORD2
+setOnClickCallback	KEYWORD2
+setOnLongPressStartCallback	KEYWORD2
+setOnLongPressCallback	KEYWORD2
+setOnLongPressEndCallback	KEYWORD2
+getPin	KEYWORD2
+isInitialized	KEYWORD2
+onButtonClick	KEYWORD2
+onButtonLongPressStart	KEYWORD2
+onButtonLongPress	KEYWORD2
+onButtonLongPressEnd	KEYWORD2
+
 ############################################
 # Instances (KEYWORD2)
 ############################################
-
-ESP32ButtonHandler	KEYWORD2
 
 ############################################
 # Constants (LITERAL1)

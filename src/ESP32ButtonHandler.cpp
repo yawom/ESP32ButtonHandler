@@ -1,4 +1,5 @@
 #include "ESP32ButtonHandler.h"
+#include <algorithm>
 
 ESP32ButtonHandler::ESP32ButtonHandler(uint8_t pin,
                                        bool activeLow,
@@ -6,7 +7,8 @@ ESP32ButtonHandler::ESP32ButtonHandler(uint8_t pin,
                                        unsigned long holdThreshold,
                                        unsigned long multiClickThreshold,
                                        unsigned long debounceDelay)
-    : pin(pin), activeLow(activeLow), holdThreshold(holdThreshold),
+    : threadHandle(nullptr), mutex(nullptr),
+      pin(pin), activeLow(activeLow), holdThreshold(holdThreshold),
       multiClickThreshold(multiClickThreshold), debounceDelay(debounceDelay),
       pressTime(0), releaseTime(0), lastHeldTime(0), lastDebounceTime(0),
       lastButtonRead(false), debouncedState(false),
@@ -15,10 +17,21 @@ ESP32ButtonHandler::ESP32ButtonHandler(uint8_t pin,
       onLongPressCallback(nullptr), onLongPressEndCallback(nullptr)
 {
     pinMode(pin, pullUp ? INPUT_PULLUP : INPUT);
+
+    // Create mutex for thread safety
+    mutex = xSemaphoreCreateMutex();
+    if (mutex == nullptr) {
+        // Mutex creation failed, cannot continue safely
+        return;
+    }
+
+    // Create FreeRTOS task
     if (xTaskCreate(thread, "ButtonThread", 4096, this, 1, &threadHandle) != pdPASS)
     {
-        Serial.println("Failed to create button thread");
-        vTaskDelete(threadHandle);
+        // Task creation failed, clean up mutex
+        vSemaphoreDelete(mutex);
+        mutex = nullptr;
+        threadHandle = nullptr;
     }
 }
 
@@ -28,43 +41,68 @@ ESP32ButtonHandler::~ESP32ButtonHandler() {
         vTaskDelete(threadHandle);
         threadHandle = nullptr;
     }
+
+    // Clean up mutex
+    if (mutex != nullptr) {
+        vSemaphoreDelete(mutex);
+        mutex = nullptr;
+    }
 }
 
 void ESP32ButtonHandler::addObserver(ButtonObserver* observer) {
-    if (observer) {
-        // Check if observer already exists to avoid duplicates
-        for (auto existingObserver : observers) {
-            if (existingObserver == observer) {
-                return; // Observer already added
+    if (observer && mutex != nullptr) {
+        if (xSemaphoreTake(mutex, portMAX_DELAY) == pdTRUE) {
+            // Check if observer already exists to avoid duplicates
+            for (auto existingObserver : observers) {
+                if (existingObserver == observer) {
+                    xSemaphoreGive(mutex);
+                    return; // Observer already added
+                }
             }
+            observers.push_back(observer);
+            xSemaphoreGive(mutex);
         }
-        observers.push_back(observer);
     }
 }
 
 void ESP32ButtonHandler::removeObserver(ButtonObserver* observer) {
-    if (observer) {
-        auto it = std::find(observers.begin(), observers.end(), observer);
-        if (it != observers.end()) {
-            observers.erase(it);
+    if (observer && mutex != nullptr) {
+        if (xSemaphoreTake(mutex, portMAX_DELAY) == pdTRUE) {
+            auto it = std::find(observers.begin(), observers.end(), observer);
+            if (it != observers.end()) {
+                observers.erase(it);
+            }
+            xSemaphoreGive(mutex);
         }
     }
 }
 
 void ESP32ButtonHandler::setOnClickCallback(std::function<void(ESP32ButtonHandler*, int)> callback) {
-    onClickCallback = callback;
+    if (mutex != nullptr && xSemaphoreTake(mutex, portMAX_DELAY) == pdTRUE) {
+        onClickCallback = callback;
+        xSemaphoreGive(mutex);
+    }
 }
 
 void ESP32ButtonHandler::setOnLongPressStartCallback(std::function<void(ESP32ButtonHandler*)> callback) {
-    onLongPressStartCallback = callback;
+    if (mutex != nullptr && xSemaphoreTake(mutex, portMAX_DELAY) == pdTRUE) {
+        onLongPressStartCallback = callback;
+        xSemaphoreGive(mutex);
+    }
 }
 
 void ESP32ButtonHandler::setOnLongPressCallback(std::function<void(ESP32ButtonHandler*)> callback) {
-    onLongPressCallback = callback;
+    if (mutex != nullptr && xSemaphoreTake(mutex, portMAX_DELAY) == pdTRUE) {
+        onLongPressCallback = callback;
+        xSemaphoreGive(mutex);
+    }
 }
 
 void ESP32ButtonHandler::setOnLongPressEndCallback(std::function<void(ESP32ButtonHandler*)> callback) {
-    onLongPressEndCallback = callback;
+    if (mutex != nullptr && xSemaphoreTake(mutex, portMAX_DELAY) == pdTRUE) {
+        onLongPressEndCallback = callback;
+        xSemaphoreGive(mutex);
+    }
 }
 
 void ESP32ButtonHandler::update()
@@ -174,7 +212,7 @@ bool ESP32ButtonHandler::updateDebounce(bool reading)
         lastDebounceTime = millis();
     }
 
-    if (millis() - lastDebounceTime > debounceDelay)
+    if (millis() - lastDebounceTime >= debounceDelay)
     {
         debouncedState = reading;
     }
@@ -185,16 +223,18 @@ bool ESP32ButtonHandler::updateDebounce(bool reading)
 
 void ESP32ButtonHandler::transition(ButtonState newState)
 {
-#ifdef DEBUG
-    Serial.print("[");
-    Serial.print(millis());
-    Serial.print(" ms] Transitioning from ");
-    Serial.print(stateToString(currentState));
-    Serial.print(" to ");
-    Serial.print(stateToString(newState));
-    Serial.print(" clickCount = ");
-    Serial.println(clickCount);
-#endif // DEBUG
+#ifdef ESP32_BUTTON_DEBUG
+    if (Serial) {
+        Serial.print("[");
+        Serial.print(millis());
+        Serial.print(" ms] Transitioning from ");
+        Serial.print(stateToString(currentState));
+        Serial.print(" to ");
+        Serial.print(stateToString(newState));
+        Serial.print(" clickCount = ");
+        Serial.println(clickCount);
+    }
+#endif // ESP32_BUTTON_DEBUG
 
     currentState = newState;
 }
@@ -239,50 +279,78 @@ void ESP32ButtonHandler::thread(void *context)
 }
 
 void ESP32ButtonHandler::notifyOnClick(int count) {
-    // Notify all observers
-    for (auto observer : observers) {
-        observer->onButtonClick(this, count);
-    }
+    if (mutex != nullptr && xSemaphoreTake(mutex, portMAX_DELAY) == pdTRUE) {
+        // Create a copy of observers to iterate safely
+        std::vector<ButtonObserver*> observersCopy = observers;
+        auto callbackCopy = onClickCallback;
+        xSemaphoreGive(mutex);
 
-    // Call function callback if set
-    if (onClickCallback) {
-        onClickCallback(this, count);
+        // Notify all observers
+        for (auto observer : observersCopy) {
+            observer->onButtonClick(this, count);
+        }
+
+        // Call function callback if set
+        if (callbackCopy) {
+            callbackCopy(this, count);
+        }
     }
 }
 
 void ESP32ButtonHandler::notifyOnLongPressStart() {
-    // Notify all observers
-    for (auto observer : observers) {
-        observer->onButtonLongPressStart(this);
-    }
+    if (mutex != nullptr && xSemaphoreTake(mutex, portMAX_DELAY) == pdTRUE) {
+        // Create a copy of observers to iterate safely
+        std::vector<ButtonObserver*> observersCopy = observers;
+        auto callbackCopy = onLongPressStartCallback;
+        xSemaphoreGive(mutex);
 
-    // Call function callback if set
-    if (onLongPressStartCallback) {
-        onLongPressStartCallback(this);
+        // Notify all observers
+        for (auto observer : observersCopy) {
+            observer->onButtonLongPressStart(this);
+        }
+
+        // Call function callback if set
+        if (callbackCopy) {
+            callbackCopy(this);
+        }
     }
 }
 
 void ESP32ButtonHandler::notifyOnLongPress() {
-    // Notify all observers
-    for (auto observer : observers) {
-        observer->onButtonLongPress(this);
-    }
+    if (mutex != nullptr && xSemaphoreTake(mutex, portMAX_DELAY) == pdTRUE) {
+        // Create a copy of observers to iterate safely
+        std::vector<ButtonObserver*> observersCopy = observers;
+        auto callbackCopy = onLongPressCallback;
+        xSemaphoreGive(mutex);
 
-    // Call function callback if set
-    if (onLongPressCallback) {
-        onLongPressCallback(this);
+        // Notify all observers
+        for (auto observer : observersCopy) {
+            observer->onButtonLongPress(this);
+        }
+
+        // Call function callback if set
+        if (callbackCopy) {
+            callbackCopy(this);
+        }
     }
 }
 
 void ESP32ButtonHandler::notifyOnLongPressEnd() {
-    // Notify all observers
-    for (auto observer : observers) {
-        observer->onButtonLongPressEnd(this);
-    }
+    if (mutex != nullptr && xSemaphoreTake(mutex, portMAX_DELAY) == pdTRUE) {
+        // Create a copy of observers to iterate safely
+        std::vector<ButtonObserver*> observersCopy = observers;
+        auto callbackCopy = onLongPressEndCallback;
+        xSemaphoreGive(mutex);
 
-    // Call function callback if set
-    if (onLongPressEndCallback) {
-        onLongPressEndCallback(this);
+        // Notify all observers
+        for (auto observer : observersCopy) {
+            observer->onButtonLongPressEnd(this);
+        }
+
+        // Call function callback if set
+        if (callbackCopy) {
+            callbackCopy(this);
+        }
     }
 }
 

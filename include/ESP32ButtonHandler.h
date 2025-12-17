@@ -4,6 +4,8 @@
 #include <Arduino.h>
 #include <functional>
 #include <vector>
+#include <freertos/FreeRTOS.h>
+#include <freertos/semphr.h>
 
 // Forward declaration
 class ESP32ButtonHandler;
@@ -69,6 +71,12 @@ public:
      */
     ~ESP32ButtonHandler();
 
+    // Disable copy and move operations (class manages FreeRTOS resources)
+    ESP32ButtonHandler(const ESP32ButtonHandler&) = delete;
+    ESP32ButtonHandler& operator=(const ESP32ButtonHandler&) = delete;
+    ESP32ButtonHandler(ESP32ButtonHandler&&) = delete;
+    ESP32ButtonHandler& operator=(ESP32ButtonHandler&&) = delete;
+
     /**
      * @brief Add an observer to receive button events
      * @param observer Pointer to observer object
@@ -111,8 +119,15 @@ public:
      */
     uint8_t getPin() const { return pin; }
 
+    /**
+     * @brief Check if the handler was initialized successfully
+     * @return true if initialization succeeded, false otherwise
+     */
+    bool isInitialized() const { return threadHandle != nullptr; }
+
 private:
     TaskHandle_t threadHandle;
+    SemaphoreHandle_t mutex;
 
     uint8_t pin;
     bool activeLow;
