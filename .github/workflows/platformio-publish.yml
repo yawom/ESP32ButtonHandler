@@ -1,0 +1,115 @@
+name: Publish to PlatformIO Registry
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'  # Trigger on version tags like v2.0.0, v2.1.0, etc.
+  workflow_dispatch:  # Allow manual triggering
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install PlatformIO Core
+        run: |
+          pip install --upgrade platformio
+          pio --version
+
+      - name: Validate library.json
+        run: |
+          if [ ! -f library.json ]; then
+            echo "Error: library.json not found!"
+            exit 1
+          fi
+          # Basic JSON validation
+          python -m json.tool library.json > /dev/null
+          echo "✓ library.json is valid"
+
+      - name: Extract version from tag
+        id: get_version
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            VERSION=${GITHUB_REF#refs/tags/v}
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+            echo "Publishing version: $VERSION"
+          else
+            echo "Not a tag push, using version from library.json"
+            VERSION=$(python -c "import json; print(json.load(open('library.json'))['version'])")
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Verify version matches library.json
+        run: |
+          LIB_VERSION=$(python -c "import json; print(json.load(open('library.json'))['version'])")
+          TAG_VERSION="${{ steps.get_version.outputs.version }}"
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            if [ "$LIB_VERSION" != "$TAG_VERSION" ]; then
+              echo "Error: library.json version ($LIB_VERSION) doesn't match tag version ($TAG_VERSION)"
+              exit 1
+            fi
+          fi
+          echo "✓ Version check passed: $LIB_VERSION"
+
+      - name: Check library structure
+        run: |
+          echo "Checking library structure..."
+          [ -d "src" ] && echo "✓ src/ directory found" || (echo "✗ src/ directory missing" && exit 1)
+          [ -d "include" ] && echo "✓ include/ directory found" || (echo "✗ include/ directory missing" && exit 1)
+          [ -d "examples" ] && echo "✓ examples/ directory found" || echo "⚠ examples/ directory recommended"
+          [ -f "library.properties" ] && echo "✓ library.properties found" || echo "⚠ library.properties recommended for Arduino IDE"
+          [ -f "keywords.txt" ] && echo "✓ keywords.txt found" || echo "⚠ keywords.txt recommended"
+          [ -f "README.md" ] && echo "✓ README.md found" || echo "⚠ README.md recommended"
+          [ -f "LICENSE" ] && echo "✓ LICENSE found" || echo "⚠ LICENSE recommended"
+
+      - name: Publish to PlatformIO Registry
+        env:
+          PLATFORMIO_AUTH_TOKEN: ${{ secrets.PLATFORMIO_AUTH_TOKEN }}
+        run: |
+          if [ -z "$PLATFORMIO_AUTH_TOKEN" ]; then
+            echo "Error: PLATFORMIO_AUTH_TOKEN secret not set!"
+            echo "Please add your PlatformIO token to GitHub Secrets"
+            exit 1
+          fi
+
+          echo "Publishing library to PlatformIO Registry..."
+          pio pkg publish --owner "${GITHUB_REPOSITORY_OWNER}" --non-interactive
+
+          echo "✓ Successfully published to PlatformIO Registry!"
+          echo "View at: https://registry.platformio.org/libraries/${GITHUB_REPOSITORY_OWNER}/ESP32ButtonHandler"
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref_name }}
+          release_name: Release ${{ github.ref_name }}
+          body: |
+            ## ESP32ButtonHandler ${{ steps.get_version.outputs.version }}
+
+            Published to PlatformIO Registry!
+
+            **Installation:**
+            ```bash
+            pio pkg install --library "${{ github.repository_owner }}/ESP32ButtonHandler@^${{ steps.get_version.outputs.version }}"
+            ```
+
+            Or add to `platformio.ini`:
+            ```ini
+            lib_deps =
+                ${{ github.repository_owner }}/ESP32ButtonHandler@^${{ steps.get_version.outputs.version }}
+            ```
+
+            See the [README](https://github.com/${{ github.repository }}) for usage instructions.
+          draft: false
+          prerelease: false

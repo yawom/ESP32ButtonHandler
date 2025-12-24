@@ -201,3 +201,76 @@ If the callbacks aren't called:
 - Arduino framework
 - FreeRTOS (included with ESP32 Arduino core)
 
+## Installation
+
+### PlatformIO
+
+Add to your `platformio.ini`:
+```ini
+lib_deps =
+    yawom/ESP32ButtonHandler@^2.0.0
+```
+
+Or install via CLI:
+```bash
+pio pkg install --library "yawom/ESP32ButtonHandler"
+```
+
+### Arduino IDE
+
+1. Download the latest release from the [releases page](https://github.com/yawom/ESP32ButtonHandler/releases)
+2. Extract to your Arduino libraries folder
+3. Restart Arduino IDE
+
+## Publishing (for maintainers)
+
+This library uses GitHub Actions to automatically publish to the PlatformIO registry.
+
+### Setup
+
+1. Get your PlatformIO authentication token:
+   ```bash
+   pio account token
+   ```
+
+2. Add the token to GitHub Secrets:
+   - Go to: Settings → Secrets and variables → Actions
+   - Create new secret: `PLATFORMIO_AUTH_TOKEN`
+   - Paste your token
+
+3. Create a version tag to publish:
+   ```bash
+   # Update version in library.json and library.properties
+   # Then create and push a tag
+   git tag v2.0.1
+   git push origin v2.0.1
+   ```
+
+The GitHub Action will automatically:
+- Validate library structure
+- Check version consistency
+- Publish to PlatformIO registry
+- Create a GitHub release
+
+### Manual Publishing
+
+You can also publish manually:
+```bash
+pio pkg publish
+```
+
+## Contributing
+
+Contributions are welcome! Please:
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Submit a pull request
+
+All pull requests are automatically validated by CI.
+
+## License
+
+This library is licensed under the BSD-3-Clause License. See [LICENSE](LICENSE) for details.
+
+
